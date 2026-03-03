@@ -1,0 +1,58 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Programs xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.staubli.com/robotics/VAL3/Program/2">
+  <Program name="_recvWaypoints">
+    <Locals>
+      <Local name="l_nJ1" type="num" xsi:type="array" size="1" />
+      <Local name="l_nJ2" type="num" xsi:type="array" size="1" />
+      <Local name="l_nJ3" type="num" xsi:type="array" size="1" />
+      <Local name="l_nJ4" type="num" xsi:type="array" size="1" />
+      <Local name="l_nJ5" type="num" xsi:type="array" size="1" />
+      <Local name="l_nJ6" type="num" xsi:type="array" size="1" />
+    </Locals>
+    <Code><![CDATA[begin
+  // ============================================================================
+  // CMD 3: 웨이포인트 수신 (TCP - Motion 소켓)
+  // 데이터: DOC(float) + Force(float) + Count(float) + Joints(6 floats each)
+  // Joint: j1, j2, j3, j4, j5, j6 (degrees)
+  // ============================================================================
+  cls()
+  putln("* CMD "+ toString("", nCmdSignal) +":  웨이포인트 수신 시작")
+  nStatusSignal = 0
+  
+  // Count 수신
+  call _recvFloat(nWaypointCount)
+  nWaypointCount = roundDown(nWaypointCount)
+  gotoxy(0,1)
+  putln("  Count=" + toString("", nWaypointCount))
+  
+  // 각 Waypoint 수신 (6축 Joint)
+  for i = 0 to nWaypointCount - 1
+    call _recvFloat(nX)
+    call _recvFloat(nY)
+    call _recvFloat(nZ)
+    
+    pWaypoints[i].trsf.x = nX
+    pWaypoints[i].trsf.y = nY
+    pWaypoints[i].trsf.z = nZ
+    pWaypoints[i].trsf.rx = -5
+    pWaypoints[i].trsf.ry = 0
+    pWaypoints[i].trsf.rz = 90
+    
+    if i == 0 or  i == nWaypointCount - 1
+      putln("  P[" + toString("", i) + "]=" + toString("", nX) + "," + toString("", nY) + "," + toString("", nZ) + "," + toString("", nRx) + "," + toString("", nRy) + "," + toString("", nRz))
+    endIf
+  endFor
+  
+  gotoxy(0,4)
+  putln("* 웨이 포인트 수신 완료")
+  nStatusSignal = 3
+  call _sendStatus()
+  
+  gotoxy(0,8)
+  putln("현재 상태값 : "+ toString("", nStatusSignal))
+  putln("========================")
+  putln("      명령 대기 중...")
+  putln("========================")
+end]]></Code>
+  </Program>
+</Programs>

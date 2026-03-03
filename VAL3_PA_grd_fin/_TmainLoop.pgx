@@ -1,0 +1,69 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Programs xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.staubli.com/robotics/VAL3/Program/2">
+  <Program name="_TmainLoop">
+    <Code><![CDATA[begin
+  cls()
+  putln("[키보드 명령]")
+  putln("  F1 = 종료")
+  putln("  F2 = 스캔위치 이동")
+  putln("  F3 = 웨이포인트 수신")
+  putln("  F4 = 가공 시작")
+  putln("")
+  
+  while bRunning
+    
+    nKey = get()
+    
+    switch nKey
+      case 271
+        nCmdSignal = 1
+        putln("[F1] 종료")
+      break
+      case 272
+        nCmdSignal = 2
+        putln("[F2] 스캔 이동")
+      break
+      case 273
+        nCmdSignal = 3
+        putln("[F3] 웨이포인트 수신")
+      break
+      case 274
+        nCmdSignal = 4
+        putln("[F4] 가공 시작")
+      break
+      default
+        nCmdSignal = 0
+      break
+    endSwitch
+    
+    if nCmdSignal != 0
+      switch nCmdSignal
+        case 1
+          call _finish()
+        break
+        case 2
+          call _moveToScan()
+        break
+        case 3
+          call _recvWaypoints()
+        break
+        case 4
+          call _startPass()
+        break
+      endSwitch
+      
+      // 상태 응답 전송
+      //call _sendStatus()
+      
+      gotoxy(0,9)
+      putln("다음 명령 대기 (F1~F4)...")
+      nCmdSignal = 0
+    endIf
+    
+    delay(0.01)
+    
+  endWhile
+  
+end]]></Code>
+  </Program>
+</Programs>

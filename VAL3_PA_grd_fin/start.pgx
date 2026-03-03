@@ -1,0 +1,84 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Programs xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.staubli.com/robotics/VAL3/Program/2">
+  <Program name="start">
+    <Code><![CDATA[begin
+  // ============================================================================
+  // PA_grinding_V3 - TCP 통신 버전 (3 소켓)
+  // Command (11001): ROS2 -> 로봇, 명령 수신
+  // Motion (11000): ROS2 -> 로봇, Waypoint/Joint 데이터
+  // Feedback (11002): 로봇 -> ROS2, 상태 송신
+  // ============================================================================
+  
+  userPage()
+  cls()
+  putln("========================")
+  putln("  PA_grinding_Started")
+  putln("========================")
+  putln("")
+  
+  // 초기화
+  bRunning = true
+  nLastCmd = 0
+  nStatusSignal = 0
+  nWaypointCount = 0
+  nConnFlag = 0
+  
+  
+  bMove=false
+  bAlterRun=false
+  nAlterBegin=0
+  nAlter=0
+  nAlterEnd=0
+  
+  // 소켓 타임아웃 설정 (non-blocking)
+  sioCtrl(siTcpIpCommand, "timeout", 0)
+  sioCtrl(siTcpIpMotion, "timeout", 0)
+  sioCtrl(siTcpIpFbk, "timeout", 0)
+  sioCtrl(siTcpIpJoint, "timeout", 0)
+  
+  // 버퍼 클리어
+  clearBuffer(siTcpIpCommand)
+  clearBuffer(siTcpIpMotion)
+  clearBuffer(siTcpIpFbk)
+  clearBuffer(siTcpIpJoint)
+  
+  putln("TCP 소켓 준비 완료")
+  putln("  - Command: 11001 (수신)")
+  putln("  - Motion: 11000 (수신)")
+  putln("  - Feedback: 11002 (송신)")
+  putln("  - Joint: 11003 (송신)")
+  putln("")
+  
+  // 홈 위치로 이동
+  
+  putln("홈으로 이동 중")
+  movej(jHome,tTool,mNomSpeed)
+  waitEndMove()
+  
+  taskCreate "IO",50,_Io()
+  taskCreate "Alter_status",50,_alter_stauts()
+  cls()
+  putln("========================")
+  putln("      명령 대기 중...")
+  putln("========================")
+  putln("")
+  putln("CMD: 1=종료, 2=스캔, 3=경로수신,")
+  putln("     4=가공")
+
+
+  // 메인 루프 태스크 시작
+  taskCreate "mainLoop", 100, _mainLoop()
+  
+  // 메인 루프 종료 대기
+  wait(taskStatus("mainLoop") == -1)
+  
+  cls()
+  putln("PA_grindin 종료")
+  
+  // 홈 위치로 이동
+  movej(jHome,tTool,mNomSpeed)
+  waitEndMove()
+  
+end]]></Code>
+  </Program>
+</Programs>

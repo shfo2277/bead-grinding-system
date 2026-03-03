@@ -1,0 +1,4 @@
+<CycloneDDS xmlns="https://cdds.io/config">
+  <Domain id="any">
+  </Domain>
+</CycloneDDS>

@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://www.staubli.com/robotics/VAL3/Project/3">
+  <Parameters version="s7.11.2" stackSize="5000" millimeterUnit="true" />
+  <Programs>
+    <Program file="_alter_stauts.pgx" />
+    <Program file="_finish.pgx" />
+    <Program file="_Io.pgx" />
+    <Program file="_mainLoop.pgx" />
+    <Program file="_moveToScan.pgx" />
+    <Program file="_recvFloat.pgx" />
+    <Program file="_recvWaypoints.pgx" />
+    <Program file="_sendJoint.pgx" />
+    <Program file="_sendStatus.pgx" />
+    <Program file="_startPass.pgx" />
+    <Program file="_TmainLoop.pgx" />
+    <Program file="Alter.pgx" />
+    <Program file="start.pgx" />
+    <Program file="stop.pgx" />
+  </Programs>
+  <Database>
+    <Data file="_PA_grd_fin.dtx" />
+  </Database>
+  <Libraries />
+</Project>

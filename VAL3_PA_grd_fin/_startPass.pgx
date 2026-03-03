@@ -1,0 +1,74 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Programs xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.staubli.com/robotics/VAL3/Program/2">
+  <Program name="_startPass">
+    <Code><![CDATA[begin
+  cls()
+  putln("* CMD "+ toString("", nCmdSignal) +": 가공 시작")
+  
+  if taskStatus("alter")!=1
+    taskCreate "alter",100,Alter()
+  endIf
+  
+  // Approach/Retract 높이 설정 (mm)
+  l_nHeight = 5
+  
+  // 시작점, 끝점의 직교좌표 계산
+  pStart = pWaypoints[0]
+  pEnd =  pWaypoints[nWaypointCount - 1]
+  
+  // Approach 포인트 (시작점 위)
+  pApproach = pStart
+  pApproach.trsf.z = pApproach.trsf.z + l_nHeight
+  
+  // Retract 포인트 (끝점 위)
+  pRetract = pEnd
+  pRetract.trsf.z = pRetract.trsf.z + l_nHeight
+  
+  // 1. Approach 위치로 이동
+  gotoxy(0,1)
+  putln("  [1] Approach 이동 (Z+" + toString("", l_nHeight) + ")")
+  alterMovel(pApproach, tTool, mNomSpeed)
+  waitEndMove()
+  
+  // 2. 시작점으로 하강
+  gotoxy(0,2)
+  putln("  [2] 시작점 하강")
+  alterMovel(pStart, tTool, mAprSpeed)
+  waitEndMove()
+  bAlterRun = true
+  
+  // 3. 가공 경로 실행
+  gotoxy(0,3)
+  putln("  [3] 그라인딩 시작")
+  for i = 0 to nWaypointCount - 1
+    bAlterReset=true
+    alterMovel(pWaypoints[i], tTool, mGrindSpeed)
+    waitEndMove()
+  
+    // TODO: Force Control 적용
+  endFor
+  alterEnd()
+  bAlterRun=false
+  nAlter=0
+  nAlterBegin=0
+  taskKill("alter")
+  
+  // 4. Retract 위치로 상승
+  gotoxy(0,4)
+  putln("  [4] Retract 이동 (Z+" + toString("", l_nHeight) + ")")
+  alterMovel(pRetract, tTool, mAprSpeed)
+  waitEndMove()
+    
+  gotoxy(0,5)
+  putln("* 그라인딩 완료")
+  nStatusSignal = 4
+  call _sendStatus()
+  
+  gotoxy(0,8)
+  putln("현재 상태값 : "+ toString("", nStatusSignal))
+  putln("========================")
+  putln("      명령 대기 중...")
+  putln("========================")
+end]]></Code>
+  </Program>
+</Programs>

@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Programs xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.staubli.com/robotics/VAL3/Program/2">
+  <Program name="_recvFloat">
+    <Parameters>
+      <Parameter name="x_nValue" type="num" xsi:type="element" use="reference" />
+    </Parameters>
+    <Locals>
+      <Local name="l_nRetVal" type="num" xsi:type="array" size="1" />
+      <Local name="l_nBytes" type="num" xsi:type="array" size="4" />
+      <Local name="l_nCount" type="num" xsi:type="array" size="1" />
+      <Local name="l_nByte" type="num" xsi:type="array" size="1" />
+      <Local name="l_nSign" type="num" xsi:type="array" size="1" />
+      <Local name="l_nExp" type="num" xsi:type="array" size="1" />
+      <Local name="l_nMant" type="num" xsi:type="array" size="1" />
+    </Locals>
+    <Code><![CDATA[begin
+  // ============================================================================
+  // IEEE 754 float32 수신 및 파싱 (little-endian)
+  // ============================================================================
+  
+  // 4바이트 수신
+  l_nCount = 0
+  while l_nCount < 4
+    l_nRetVal = sioGet(siTcpIpMotion, l_nByte)
+    if l_nRetVal == 1
+      l_nBytes[l_nCount] = l_nByte
+      l_nCount = l_nCount + 1
+    elseIf l_nRetVal == -1
+      x_nValue = 0
+      return
+    endIf
+  endWhile
+  
+  // IEEE 754 float32 파싱 (little-endian)
+  l_nSign = roundDown(l_nBytes[3] / 128)
+  l_nExp = (l_nBytes[3] - l_nSign * 128) * 2 + roundDown(l_nBytes[2] / 128)
+  l_nMant = (l_nBytes[2] - roundDown(l_nBytes[2] / 128) * 128) * 65536 + l_nBytes[1] * 256 + l_nBytes[0]
+  
+  if l_nExp == 0
+    x_nValue = 0
+  elseIf l_nExp == 255
+    x_nValue = 0
+  else
+    x_nValue = power(2, l_nExp - 127) * (1 + l_nMant / 8388608)
+    if l_nSign == 1
+      x_nValue = -x_nValue
+    endIf
+  endIf
+  
+end]]></Code>
+  </Program>
+</Programs>

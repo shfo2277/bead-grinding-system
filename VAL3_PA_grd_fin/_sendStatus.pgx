@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Programs xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.staubli.com/robotics/VAL3/Program/2">
+  <Program name="_sendStatus">
+    <Locals>
+      <Local name="l_nData" type="num" xsi:type="array" size="1" />
+    </Locals>
+    <Code><![CDATA[begin
+  // ============================================================================
+  // 상태 응답 전송 (1바이트)
+  // 0=Idle, 1=Ready, 2=PassDone, 3=Error
+  // ============================================================================
+  
+  l_nData = nStatusSignal
+  sioSet(siTcpIpFbk, l_nData)
+  
+  putln("[TCP] STATUS = " + toString("", nStatusSignal))
+  
+end]]></Code>
+  </Program>
+</Programs>

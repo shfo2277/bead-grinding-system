@@ -1,0 +1,59 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Programs xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.staubli.com/robotics/VAL3/Program/2">
+  <Program name="_mainLoop">
+    <Locals>
+      <Local name="l_nRetVal" type="num" xsi:type="array" size="1" />
+    </Locals>
+    <Code><![CDATA[begin
+  // ============================================================================
+  // 메인 루프 - Command 소켓에서 명령 수신
+  // 명령: 1바이트 (1=종료, 2=스캔, 3=WP수신, 4=가공)
+  // ============================================================================
+  
+  while bRunning
+    
+    // Command 소켓에서 명령 수신 (1바이트)
+    l_nRetVal = sioGet(siTcpIpCommand, nByte)
+    
+    if l_nRetVal == 1
+      // 데이터 수신됨
+      nCmdSignal = nByte
+      nConnFlag = 1
+      putln("[CMD] 수신 = " + toString("", nCmdSignal))
+      
+      switch nCmdSignal
+        case 1
+          call _finish()
+          break
+        case 2
+          call _moveToScan()
+          break
+        case 3
+          call _recvWaypoints()
+          break
+        case 4
+          call _startPass()
+          break
+        default
+          putln("[WARN] 알 수 없는 명령: " + toString("", nCmdSignal))
+          break
+      endSwitch
+      
+      // Feedback 소켓으로 상태 응답 전송
+      call _sendStatus()
+      
+    elseIf l_nRetVal == -1
+      // 연결 끊김
+      if nConnFlag == 1
+        putln("[CMD] 연결 끊김")
+        nConnFlag = 0
+      endIf
+    endIf
+    
+    delay(0.01)
+    
+  endWhile
+  
+end]]></Code>
+  </Program>
+</Programs>

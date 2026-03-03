@@ -1,0 +1,64 @@
+# ======================
+# Python
+# ======================
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# ======================
+# Virtual environment
+# ======================
+rs/
+
+# ======================
+# Model weights
+# ======================
+*.pth
+*.pt
+*.h5
+modelresult/
+
+# ======================
+# Dataset / Real data
+# ======================
+DATA/
+Training/
+Validation/
+Test/
+REAL/
+*.jpg
+*.png
+
+# ======================
+# Training outputs
+# ======================
+runs/
+logs/
+*.log
+
+# ======================
+# Generated / Binary files
+# ======================
+*.pdf
+*.gv
+*.zip
+*.mp4
+*.csv
+
+# ======================
+# Copies / Backups
+# ======================
+Calibration (Copy)/
+Calibration (Copy).zip
+
+# ======================
+# Editor / OS / Config
+# ======================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.claude/

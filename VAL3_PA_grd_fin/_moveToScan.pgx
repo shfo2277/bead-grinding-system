@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Programs xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.staubli.com/robotics/VAL3/Program/2">
+  <Program name="_moveToScan">
+    <Code><![CDATA[begin
+  // ============================================================================
+  // CMD 2: 스캔 위치로 이동
+  // ============================================================================
+  cls()
+  putln("* CMD "+ toString("", nCmdSignal) +": 스캔 위치로 이동")
+  
+  nStatusSignal = 0
+  call _sendStatus()
+  
+  movej(jScan, tTool, mNomSpeed)
+  waitEndMove()
+  gotoxy(0,1)
+  putln("* 스캔 위치 도달")
+  
+  call _sendJoint()
+
+  nStatusSignal = 2
+  call _sendStatus()
+
+  gotoxy(0,8)
+  putln("현재 상태값 : "+ toString("", nStatusSignal))
+  putln("========================")
+  putln("      명령 대기 중...")
+  putln("========================")
+end]]></Code>
+  </Program>
+</Programs>

@@ -1,0 +1,207 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Database xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.staubli.com/robotics/VAL3/Data/2">
+  <Datas>
+    <Data name="mNomSpeed" access="private" xsi:type="array" type="mdesc" size="1">
+      <Value key="0" tmax="25" rmax="25" blend="off" />
+    </Data>
+    <Data name="bRunning" access="private" xsi:type="array" type="bool" size="1" />
+    <Data name="nLastCmd" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="nStatusSignal" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="nWaypointCount" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="nConnFlag" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="bMove" access="private" xsi:type="array" type="bool" size="1" />
+    <Data name="bAlterRun" access="private" xsi:type="array" type="bool" size="1" />
+    <Data name="nAlterBegin" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="nAlter" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="nAlterEnd" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="siTcpIpCommand" access="public" xsi:type="array" type="sio" size="1">
+      <Value key="0" link="Socket\Command" />
+    </Data>
+    <Data name="siTcpIpMotion" access="public" xsi:type="array" type="sio" size="1">
+      <Value key="0" link="Socket\Motion" />
+    </Data>
+    <Data name="siTcpIpFbk" access="public" xsi:type="array" type="sio" size="1">
+      <Value key="0" link="Socket\Feedback" />
+    </Data>
+    <Data name="jHome" access="private" xsi:type="array" type="jointRx" size="1">
+      <Value key="0" j1="81.48" j2="37.87" j3="86.46" j4="-16.98" j5="-30.36" j6="14" />
+    </Data>
+    <Data name="tTool" access="private" xsi:type="array" type="tool" size="1">
+      <Value key="0" x="225.4998" y="-0.0005" z="145.3992" ry="-90" fatherId="flange[0]" ioLink="valve1" />
+    </Data>
+    <Data name="mAlterspeed" access="private" xsi:type="array" type="mdesc" size="1">
+      <Value key="0" tmax="500" rmax="500" />
+    </Data>
+    <Data name="trOffset" access="private" xsi:type="array" type="trsf" size="1" />
+    <Data name="aiECAT1_0" access="public" xsi:type="array" type="aio" size="1">
+      <Value key="0" link="EtherCAT-1\%IF0" />
+    </Data>
+    <Data name="doECAT1_192" access="public" xsi:type="array" type="dio" size="1">
+      <Value key="0" link="EtherCAT-1\%Q192" />
+    </Data>
+    <Data name="aoECAT1_0" access="public" xsi:type="array" type="aio" size="1">
+      <Value key="0" link="EtherCAT-1\%QF0" />
+    </Data>
+    <Data name="aoECAT1_32" access="public" xsi:type="array" type="aio" size="1">
+      <Value key="0" link="EtherCAT-1\%QF32" />
+    </Data>
+    <Data name="aoECAT1_64" access="public" xsi:type="array" type="aio" size="1">
+      <Value key="0" link="EtherCAT-1\%QF64" />
+    </Data>
+    <Data name="aoECAT1_96" access="public" xsi:type="array" type="aio" size="1">
+      <Value key="0" link="EtherCAT-1\%QF96" />
+    </Data>
+    <Data name="aoECAT1_128" access="public" xsi:type="array" type="aio" size="1">
+      <Value key="0" link="EtherCAT-1\%QF128" />
+    </Data>
+    <Data name="aoECAT1_160" access="public" xsi:type="array" type="aio" size="1">
+      <Value key="0" link="EtherCAT-1\%QF160" />
+    </Data>
+    <Data name="pCurent_pos" access="private" xsi:type="array" type="pointRx" size="1">
+      <Value key="0" fatherId="world[0]" />
+    </Data>
+    <Data name="bAlterReset" access="private" xsi:type="array" type="bool" size="1" />
+    <Data name="nDeltZ" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="l_nHeight" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="pStart" access="private" xsi:type="array" type="pointRx" size="1">
+      <Value key="0" fatherId="world[0]" />
+    </Data>
+    <Data name="pEnd" access="private" xsi:type="array" type="pointRx" size="1">
+      <Value key="0" fatherId="world[0]" />
+    </Data>
+    <Data name="pApproach" access="private" xsi:type="array" type="pointRx" size="1">
+      <Value key="0" fatherId="world[0]" />
+    </Data>
+    <Data name="pRetract" access="private" xsi:type="array" type="pointRx" size="1">
+      <Value key="0" fatherId="world[0]" />
+    </Data>
+    <Data name="pWaypoints" access="private" xsi:type="array" type="pointRx" size="100">
+      <Value key="0" fatherId="world[0]" />
+      <Value key="1" fatherId="world[0]" />
+      <Value key="2" fatherId="world[0]" />
+      <Value key="3" fatherId="world[0]" />
+      <Value key="4" fatherId="world[0]" />
+      <Value key="5" fatherId="world[0]" />
+      <Value key="6" fatherId="world[0]" />
+      <Value key="7" fatherId="world[0]" />
+      <Value key="8" fatherId="world[0]" />
+      <Value key="9" fatherId="world[0]" />
+      <Value key="10" fatherId="world[0]" />
+      <Value key="11" fatherId="world[0]" />
+      <Value key="12" fatherId="world[0]" />
+      <Value key="13" fatherId="world[0]" />
+      <Value key="14" fatherId="world[0]" />
+      <Value key="15" fatherId="world[0]" />
+      <Value key="16" fatherId="world[0]" />
+      <Value key="17" fatherId="world[0]" />
+      <Value key="18" fatherId="world[0]" />
+      <Value key="19" fatherId="world[0]" />
+      <Value key="20" fatherId="world[0]" />
+      <Value key="21" fatherId="world[0]" />
+      <Value key="22" fatherId="world[0]" />
+      <Value key="23" fatherId="world[0]" />
+      <Value key="24" fatherId="world[0]" />
+      <Value key="25" fatherId="world[0]" />
+      <Value key="26" fatherId="world[0]" />
+      <Value key="27" fatherId="world[0]" />
+      <Value key="28" fatherId="world[0]" />
+      <Value key="29" fatherId="world[0]" />
+      <Value key="30" fatherId="world[0]" />
+      <Value key="31" fatherId="world[0]" />
+      <Value key="32" fatherId="world[0]" />
+      <Value key="33" fatherId="world[0]" />
+      <Value key="34" fatherId="world[0]" />
+      <Value key="35" fatherId="world[0]" />
+      <Value key="36" fatherId="world[0]" />
+      <Value key="37" fatherId="world[0]" />
+      <Value key="38" fatherId="world[0]" />
+      <Value key="39" fatherId="world[0]" />
+      <Value key="40" fatherId="world[0]" />
+      <Value key="41" fatherId="world[0]" />
+      <Value key="42" fatherId="world[0]" />
+      <Value key="43" fatherId="world[0]" />
+      <Value key="44" fatherId="world[0]" />
+      <Value key="45" fatherId="world[0]" />
+      <Value key="46" fatherId="world[0]" />
+      <Value key="47" fatherId="world[0]" />
+      <Value key="48" fatherId="world[0]" />
+      <Value key="49" fatherId="world[0]" />
+      <Value key="50" fatherId="world[0]" />
+      <Value key="51" fatherId="world[0]" />
+      <Value key="52" fatherId="world[0]" />
+      <Value key="53" fatherId="world[0]" />
+      <Value key="54" fatherId="world[0]" />
+      <Value key="55" fatherId="world[0]" />
+      <Value key="56" fatherId="world[0]" />
+      <Value key="57" fatherId="world[0]" />
+      <Value key="58" fatherId="world[0]" />
+      <Value key="59" fatherId="world[0]" />
+      <Value key="60" fatherId="world[0]" />
+      <Value key="61" fatherId="world[0]" />
+      <Value key="62" fatherId="world[0]" />
+      <Value key="63" fatherId="world[0]" />
+      <Value key="64" fatherId="world[0]" />
+      <Value key="65" fatherId="world[0]" />
+      <Value key="66" fatherId="world[0]" />
+      <Value key="67" fatherId="world[0]" />
+      <Value key="68" fatherId="world[0]" />
+      <Value key="69" fatherId="world[0]" />
+      <Value key="70" fatherId="world[0]" />
+      <Value key="71" fatherId="world[0]" />
+      <Value key="72" fatherId="world[0]" />
+      <Value key="73" fatherId="world[0]" />
+      <Value key="74" fatherId="world[0]" />
+      <Value key="75" fatherId="world[0]" />
+      <Value key="76" fatherId="world[0]" />
+      <Value key="77" fatherId="world[0]" />
+      <Value key="78" fatherId="world[0]" />
+      <Value key="79" fatherId="world[0]" />
+      <Value key="80" fatherId="world[0]" />
+      <Value key="81" fatherId="world[0]" />
+      <Value key="82" fatherId="world[0]" />
+      <Value key="83" fatherId="world[0]" />
+      <Value key="84" fatherId="world[0]" />
+      <Value key="85" fatherId="world[0]" />
+      <Value key="86" fatherId="world[0]" />
+      <Value key="87" fatherId="world[0]" />
+      <Value key="88" fatherId="world[0]" />
+      <Value key="89" fatherId="world[0]" />
+      <Value key="90" fatherId="world[0]" />
+      <Value key="91" fatherId="world[0]" />
+      <Value key="92" fatherId="world[0]" />
+      <Value key="93" fatherId="world[0]" />
+      <Value key="94" fatherId="world[0]" />
+      <Value key="95" fatherId="world[0]" />
+      <Value key="96" fatherId="world[0]" />
+      <Value key="97" fatherId="world[0]" />
+      <Value key="98" fatherId="world[0]" />
+      <Value key="99" fatherId="world[0]" />
+    </Data>
+    <Data name="mAprSpeed" access="private" xsi:type="array" type="mdesc" size="1">
+      <Value key="0" tmax="10" rmax="10" />
+    </Data>
+    <Data name="i" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="mGrindSpeed" access="private" xsi:type="array" type="mdesc" size="1">
+      <Value key="0" tmax="10" rmax="10" />
+    </Data>
+    <Data name="jScan" access="private" xsi:type="array" type="jointRx" size="1">
+      <Value key="0" j1="83.61" j2="38.15" j3="96.24" j4="-4.09" j5="-58.18" j6="-4.12" />
+    </Data>
+    <Data name="nByte" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="nCmdSignal" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="nForceTarget" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="nX" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="nY" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="nZ" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="nRx" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="nRy" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="nRz" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="nKey" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="x_nValue" access="private" xsi:type="array" type="num" size="1" />
+    <Data name="siTcpIpJoint" access="public" xsi:type="array" type="sio" size="1">
+      <Value key="0" link="Socket\Joint" />
+    </Data>
+    <Data name="jCurrent" access="private" xsi:type="array" type="jointRx" size="1" />
+    <Data name="l_sData" access="private" xsi:type="array" type="string" size="1" />
+  </Datas>
+</Database>

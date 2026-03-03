@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Programs xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.staubli.com/robotics/VAL3/Program/2">
+  <Program name="Alter">
+    <Code><![CDATA[begin
+  wait(bAlterRun == true and isSettled() == false)
+  nAlterBegin=alterBegin(world,mAlterspeed)
+
+  while nAlterBegin>=0 and bAlterRun==true
+    if bAlterRun==true
+      trOffset.x = 0
+      trOffset.y = 0
+      trOffset.z = nDeltZ
+      trOffset.rx = 0
+      trOffset.ry = 0
+      trOffset.rz = 0
+    elseIf bAlterRun==false
+      trOffset.z = 0
+    endIf
+    nAlter = alter(trOffset)
+      delay(0.004)
+  endWhile
+end]]></Code>
+  </Program>
+</Programs>

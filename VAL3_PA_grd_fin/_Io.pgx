@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Programs xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.staubli.com/robotics/VAL3/Program/2">
+  <Program name="_Io">
+    <Code><![CDATA[begin
+  while true
+    pCurent_pos=here(tTool[0],world)
+
+    aioSet(aoECAT1_0,pCurent_pos[0].trsf.x)
+    aioSet(aoECAT1_32,pCurent_pos[0].trsf.y)
+    aioSet(aoECAT1_64,pCurent_pos[0].trsf.z)
+    aioSet(aoECAT1_96,pCurent_pos[0].trsf.rx)
+    aioSet(aoECAT1_128,pCurent_pos[0].trsf.ry)
+    aioSet(aoECAT1_160,pCurent_pos[0].trsf.rz)
+    
+   if bAlterReset == true
+      dioSet(doECAT1_192, 1)
+      delay(0.1)
+      bAlterReset= false
+  else
+  dioSet(doECAT1_192, 0)
+  endIf
+
+    nDeltZ=aioGet(aiECAT1_0)
+    delay(0.004)
+  endWhile
+end]]></Code>
+  </Program>
+</Programs>

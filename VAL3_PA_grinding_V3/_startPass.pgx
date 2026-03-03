@@ -1,0 +1,81 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Programs xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.staubli.com/robotics/VAL3/Program/2">
+  <Program name="_startPass">
+    <Locals>
+      <Local name="l_pStart" type="pointRx" xsi:type="array" size="1" />
+      <Local name="l_pEnd" type="pointRx" xsi:type="array" size="1" />
+      <Local name="l_pApproach" type="pointRx" xsi:type="array" size="1" />
+      <Local name="l_pRetract" type="pointRx" xsi:type="array" size="1" />
+      <Local name="l_nHeight" type="num" xsi:type="array" size="1" />
+    </Locals>
+    <Code><![CDATA[begin
+  // ============================================================================
+  // CMD 4: 그라인딩 패스 실행
+  // 1. 시작점 위 (Approach) 이동
+  // 2. 시작점 이동
+  // 3. 웨이포인트 순차 이동 (가공)
+  // 4. 끝점 위 (Retract) 이동
+  // ============================================================================
+  cls()
+  putln("[CMD "+ toString("", nCmdSignal) +"] 가공 시작")
+  putln("  Waypoints: " + toString("", nWaypointCount))
+  putln("  DOC: " + toString("", nDOC))
+  putln("  Force: " + toString("", nForceTarget))
+  nStatusSignal = 0
+  
+  if nWaypointCount <= 0
+    putln("[ERROR] 웨이포인트 없음")
+    nStatusSignal = 3
+    return
+  endIf
+  
+  // Approach/Retract 높이 설정 (mm)
+  l_nHeight = 10
+  
+  // 시작점, 끝점의 직교좌표 계산
+  l_pStart = jointToPoint(tTool, fWork, jWaypoints[0])
+  l_pEnd = jointToPoint(tTool, fWork, jWaypoints[nWaypointCount - 1])
+  
+  // Approach 포인트 (시작점 위)
+  l_pApproach = l_pStart
+  l_pApproach.trsf.z = l_pApproach.trsf.z + l_nHeight
+  
+  // Retract 포인트 (끝점 위)
+  l_pRetract = l_pEnd
+  l_pRetract.trsf.z = l_pRetract.trsf.z + l_nHeight
+  
+  // 1. Approach 위치로 이동
+  putln("  [1] Approach 이동 (Z+" + toString("", l_nHeight) + ")")
+  movel(l_pApproach, tTool, mNomSpeed)
+  waitEndMove()
+  
+  // 2. 시작점으로 하강
+  putln("  [2] 시작점 하강")
+  movel(l_pStart, tTool, mAprSpeed)
+  waitEndMove()
+  
+  // 3. 가공 경로 실행
+  cls()
+  putln("  [CMD 4] 가공 경로 실행")
+  for i = 0 to nWaypointCount - 1
+    putln("    -> WP[" + toString("", i) + "]")
+    movej(jWaypoints[i], tTool, mGrindSpeed)
+    waitEndMove()
+    // TODO: Force Control 적용
+  endFor
+  
+  // 4. Retract 위치로 상승
+  putln("  [4] Retract 이동 (Z+" + toString("", l_nHeight) + ")")
+  movel(l_pRetract, tTool, mAprSpeed)
+  waitEndMove()
+  
+  movej(j_scan, tTool, mNomSpeed)
+  waitEndMove()
+  
+  nStatusSignal = 4
+  putln("[CMD 4] 완료 - STATUS=4")
+
+  
+end]]></Code>
+  </Program>
+</Programs>
