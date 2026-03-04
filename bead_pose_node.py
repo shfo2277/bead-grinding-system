@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # 고정된 스캔 위치 로봇의 조인트를 값으로 주고 > 비드 경로 생성
+#
+import os
+import csv
 import math
 import cv2
 import numpy as np
@@ -408,7 +411,19 @@ class BeadPoseNode(Node):
         self.path_pub.publish(path_msg)
 
         # ======================
-        # 9) RViz 포인트클라우드 시각화
+        # 9) 웨이포인트 CSV 저장
+        # ======================
+        waypoint_csv = os.path.join('/workspace/BEADtrain', 'bead_waypoints.csv')
+        with open(waypoint_csv, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['x_mm', 'y_mm', 'z_mm'])
+            for pose_st in path_msg.poses:
+                p = pose_st.pose.position
+                writer.writerow([f'{p.x*1000:.4f}', f'{p.y*1000:.4f}', f'{p.z*1000:.4f}'])
+        self.get_logger().info(f"📁 웨이포인트 CSV 저장: {waypoint_csv} ({len(path_msg.poses)}개)")
+
+        # ======================
+        # 10) RViz 포인트클라우드 시각화
         # ======================
         header = self.depth_header
         header.frame_id = 'world'

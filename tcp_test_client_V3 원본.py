@@ -7,7 +7,6 @@ PA_grinding TCP 클라이언트 + 오케스트레이터 (ROS2)
 """
 
 import os
-import csv
 import socket
 import struct
 import time
@@ -36,11 +35,10 @@ PORT_JOINT = 11003
 WORKSPACE = '/workspace/BEADtrain'
 CONTOUR_CSV = os.path.join(WORKSPACE, 'bead_contour.csv')
 WIDTH_CSV = os.path.join(WORKSPACE, 'bead_width.csv')
-WAYPOINT_CSV = os.path.join(WORKSPACE, 'bead_waypoints.csv')
 
 STATUS_CODES = {
     0: "이동 중",
-    1: "홈 위치(종료)",
+    1: "홈 위치",
     2: "스캔 위치 도달",
     3: "가공 준비 완료",
     4: "가공 완료"
@@ -163,26 +161,6 @@ def stop_node(proc, name=""):
         except subprocess.TimeoutExpired:
             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
         print(f"  [NODE] {name} stopped")
-
-
-def save_waypoints_csv(waypoints, path):
-    with open(path, 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(['x_mm', 'y_mm', 'z_mm'])
-        for x, y, z in waypoints:
-            writer.writerow([f'{x:.4f}', f'{y:.4f}', f'{z:.4f}'])
-    print(f"  [SAVE] 웨이포인트 저장: {path} ({len(waypoints)}개)")
-
-
-def load_waypoints_csv(path):
-    waypoints = []
-    with open(path, 'r') as f:
-        reader = csv.reader(f)
-        next(reader)  # header
-        for row in reader:
-            waypoints.append((float(row[0]), float(row[1]), float(row[2])))
-    print(f"  [LOAD] 웨이포인트 로드: {path} ({len(waypoints)}개)")
-    return waypoints
 
 
 def wait_for_csv(timeout=30, old_mtime=None):
@@ -325,51 +303,46 @@ def auto_grind_loop(sockets, ros_node):
             print("[오류] 스캔 위치 이동 실패! 중단.")
             return
 
-        # ── STEP 2 & 3: 첫 사이클만 비드 인식 + 경로 생성 ──
-        if cycle == 1:
-            print(f"\n[STEP 2] 비드 인식 시작 (bead_unet_node)")
-            ros_node.reset()
-            old_mtime = 0
-            if os.path.exists(CONTOUR_CSV):
-                old_mtime = os.path.getmtime(CONTOUR_CSV)
-            proc_unet = start_node('bead_unet_node.py')
-            time.sleep(3)  # 모델 로딩 대기
+        # ── STEP 2: 비드 인식 (bead_unet_node) ──
+        print(f"\n[STEP 2] 비드 인식 시작 (bead_unet_node)")
+        ros_node.reset()
+        # CSV mtime을 subprocess 시작 전에 기록
+        old_mtime = 0
+        if os.path.exists(CONTOUR_CSV):
+            old_mtime = os.path.getmtime(CONTOUR_CSV)
+        proc_unet = start_node('bead_unet_node.py')
+        time.sleep(3)  # 모델 로딩 대기
 
-            csv_ok = wait_for_csv(timeout=30, old_mtime=old_mtime)
+        csv_ok = wait_for_csv(timeout=30, old_mtime=old_mtime)
 
-            if not csv_ok:
-                stop_node(proc_unet, 'bead_unet_node')
-                print("[오류] 비드 인식 실패! 중단.")
-                return
-            print("  비드 외곽선 + 폭 CSV 저장 완료")
-
-            print(f"\n[STEP 3] 3D 경로 생성 (bead_pose_node)")
-            ensure_align_depth()
-            time.sleep(1)
-            proc_pose = start_node('bead_pose_node.py')
-
-            path_timeout = 30
-            start_t = time.time()
-            while time.time() - start_t < path_timeout:
-                if ros_node.path_received and ros_node.waypoints:
-                    break
-                time.sleep(0.5)
-
+        if not csv_ok:
             stop_node(proc_unet, 'bead_unet_node')
-            stop_node(proc_pose, 'bead_pose_node')
+            print("[오류] 비드 인식 실패! 중단.")
+            return
+        print("  비드 외곽선 + 폭 CSV 저장 완료")
 
-            if not ros_node.waypoints:
-                print("[오류] 경로 생성 실패! 중단.")
-                return
-            print(f"  경로: {len(ros_node.waypoints)} waypoints (mm)")
+        # ── STEP 3: 경로 생성 (bead_pose_node) ──
+        # bead_unet_node가 /bead/mask를 계속 발행해야 하므로 아직 종료하지 않음
+        print(f"\n[STEP 3] 3D 경로 생성 (bead_pose_node)")
+        ensure_align_depth()
+        time.sleep(1)  # aligned depth 토픽 안정화 대기
+        proc_pose = start_node('bead_pose_node.py')
 
-            # 첫 사이클 기준 저장 (메모리 + 파일)
-            saved_waypoints = list(ros_node.waypoints)
-            save_waypoints_csv(saved_waypoints, WAYPOINT_CSV)
-        else:
-            z_offset = -0.5 * (cycle - 1)  # 사이클2: -0.5, 사이클3: -1.0, ...
-            print(f"\n[STEP 2-3 생략] 첫 사이클 기준 재사용 (Z offset: {z_offset:.1f} mm)")
-            ros_node.waypoints = [(x, y, z + z_offset) for x, y, z in saved_waypoints]
+        # 경로 수신 대기
+        path_timeout = 30
+        start_t = time.time()
+        while time.time() - start_t < path_timeout:
+            if ros_node.path_received and ros_node.waypoints:
+                break
+            time.sleep(0.5)
+
+        stop_node(proc_unet, 'bead_unet_node')
+        stop_node(proc_pose, 'bead_pose_node')
+
+        if not ros_node.waypoints:
+            print("[오류] 경로 생성 실패! 중단.")
+            return
+        print(f"  경로: {len(ros_node.waypoints)} waypoints (mm)")
 
         # ── STEP 4: 경로 전송 + 가공 준비 (CMD 3) ──
         print(f"\n[STEP 4] 경로 전송 + 가공 준비 (CMD 3)")
@@ -404,8 +377,7 @@ def auto_grind_loop(sockets, ros_node):
         proc_after = start_node('bead_unet_node_after.py')
         time.sleep(3)  # 모델 로딩 대기
 
-    #10초 동안 프레임 수신 (초당 15프레임 수신 중)
-        stop_timeout = 8
+        stop_timeout = 30
         start_t = time.time()
         while time.time() - start_t < stop_timeout:
             if ros_node.stop_signal:

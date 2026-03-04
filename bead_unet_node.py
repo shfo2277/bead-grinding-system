@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+#그냥 이미지 1개, 오버레이 이미지, 외곽선 이미지, 중심 경로 뽑은 이미지를 저장하는 방식으로 
+# png 파일로 저장 
+# 
+
+import os
+from datetime import datetime
 
 import cv2
 import numpy as np
@@ -39,6 +45,9 @@ MODEL_PATH = "/workspace/BEADtrain/modelresult/1125unet.pth"
 CONTOUR_CSV = "bead_contour.csv"
 WIDTH_CSV   = "bead_width.csv"
 NUM_WIDTH_SLICES = 5
+
+# ===== 이미지 저장 경로 =====
+IMAGE_SAVE_DIR = "/workspace/BEADtrain/image"
 
 # ==============================
 # ✅ 안정 프레임 선정 파라미터 (튜닝 포인트)
@@ -232,6 +241,74 @@ class BeadUNetNode(Node):
 
         return overlay
 
+    def save_snapshot_images(self, frame_bgr: np.ndarray, mask_resized: np.ndarray):
+        """스냅샷 확정 시 4개 PNG 이미지 저장"""
+        # 타임스탬프 폴더 생성
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        save_dir = os.path.join(IMAGE_SAVE_DIR, timestamp)
+        os.makedirs(save_dir, exist_ok=True)
+
+        # 1) 원본 카메라 이미지
+        cv2.imwrite(os.path.join(save_dir, "1_raw_camera.png"), frame_bgr)
+
+        # 2) 비드 오버레이만 (빨간 반투명 마스크)
+        img_overlay = frame_bgr.copy()
+        mask_bool = mask_resized > 0
+        img_overlay[mask_bool] = (
+            0.5 * np.array([255, 0, 0]) + 0.5 * img_overlay[mask_bool]
+        ).astype(np.uint8)
+        cv2.imwrite(os.path.join(save_dir, "2_bead_overlay.png"), img_overlay)
+
+        # 3) 오버레이 + 외곽선만
+        img_contour = img_overlay.copy()
+        if self.saved_contour is not None:
+            cv2.drawContours(img_contour, [self.saved_contour], -1, (0, 255, 0), 2)
+            for y_line in self.width_slices_y:
+                xs = [p[0][0] for p in self.saved_contour if abs(p[0][1] - y_line) < 2]
+                if len(xs) >= 2:
+                    cv2.line(img_contour, (min(xs), y_line), (max(xs), y_line), (0, 255, 255), 2)
+        cv2.imwrite(os.path.join(save_dir, "3_bead_overlay_contour.png"), img_contour)
+
+        # PCA 중심 경로 계산
+        path_pts = []
+        ys, xs = np.where(mask_resized > 0)
+        if len(xs) >= 10:
+            pts = np.stack([xs, ys], axis=1).astype(np.float64)
+            mean = pts.mean(axis=0)
+            centered = pts - mean
+            cov = np.cov(centered.T)
+            eigvals, eigvecs = np.linalg.eig(cov)
+            direction = eigvecs[:, np.argmax(eigvals)]
+
+            t = centered @ direction
+            t_min, t_max = t.min(), t.max()
+
+            for ti in np.linspace(t_min, t_max, 50):
+                pt = mean + ti * direction
+                path_pts.append((int(pt[0]), int(pt[1])))
+
+        # 4) 오버레이 + 외곽선 + 폭선 + PCA 중심 경로
+        img_path = img_contour.copy()
+        if path_pts:
+            for i in range(len(path_pts) - 1):
+                cv2.line(img_path, path_pts[i], path_pts[i + 1], (0, 0, 255), 2)
+        cv2.imwrite(os.path.join(save_dir, "4_bead_overlay_contour_path.png"), img_path)
+
+        # 5) 오버레이 + 외곽선만 (폭선 없이)
+        img_contour_only = img_overlay.copy()
+        if self.saved_contour is not None:
+            cv2.drawContours(img_contour_only, [self.saved_contour], -1, (0, 255, 0), 2)
+        cv2.imwrite(os.path.join(save_dir, "5_bead_overlay_contour_only.png"), img_contour_only)
+
+        # 6) 원본 + PCA 중심 경로만
+        img_raw_path = frame_bgr.copy()
+        if path_pts:
+            for i in range(len(path_pts) - 1):
+                cv2.line(img_raw_path, path_pts[i], path_pts[i + 1], (0, 0, 255), 2)
+        cv2.imwrite(os.path.join(save_dir, "6_raw_path_only.png"), img_raw_path)
+
+        self.get_logger().info(f"📁 이미지 6개 저장 완료: {save_dir}")
+
     def _republish_snapshot(self):
         """확정된 스냅샷을 주기적으로 재발행 (RViz/브릿지 놓침 방지)"""
         if self.final_mask_msg is not None:
@@ -322,6 +399,9 @@ class BeadUNetNode(Node):
         overlay_msg.header = self.best_msg.header
         self.final_overlay_msg = overlay_msg
         self.pub_overlay.publish(overlay_msg)
+
+        # ===== PNG 이미지 저장 =====
+        self.save_snapshot_images(frame_bgr, mask_resized)
 
         self.published_once = True
         self.get_logger().info("✅ Snapshot published! (contour + width saved)")

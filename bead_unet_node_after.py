@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import os
+from datetime import datetime
+
 import cv2
 import csv
 import numpy as np
@@ -27,6 +30,8 @@ MODEL_PATH = "/workspace/BEADtrain/modelresult/2026-02-12_19-28-57/unet_best.pth
 
 CONTOUR_CSV = "/workspace/BEADtrain/bead_contour.csv"
 WIDTH_CSV   = "/workspace/BEADtrain/bead_width.csv"
+
+IMAGE_SAVE_DIR = "/workspace/BEADtrain/image"
 
 SHAPE_THRESH = 0.95
 WIDTH_THRESH = 0.95
@@ -126,6 +131,7 @@ class BeadStopJudgeNode(Node):
 
         self.bridge = CvBridge()
         self.stop_published = False
+        self.image_saved = False
 
         self.qos_sensor = QoSProfile(
             reliability=QoSReliabilityPolicy.BEST_EFFORT,
@@ -161,6 +167,7 @@ class BeadStopJudgeNode(Node):
 
         # Publishers (QoS: BEST_EFFORT for bridge compatibility)
         self.pub_mask = self.create_publisher(Image, "/grinding/mask", self.qos_sensor)
+        self.pub_raw = self.create_publisher(Image, "/grinding/raw", self.qos_sensor)
         self.pub_overlay = self.create_publisher(Image, "/grinding/overlay", self.qos_sensor)
         self.pub_overlay_compressed = self.create_publisher(
             CompressedImage, "/grinding/overlay/compressed", self.qos_sensor)
@@ -195,6 +202,11 @@ class BeadStopJudgeNode(Node):
         mask_msg = self.bridge.cv2_to_imgmsg(mask, "mono8")
         mask_msg.header = msg.header
         self.pub_mask.publish(mask_msg)
+
+        # Publish raw image (원본)
+        raw_msg = self.bridge.cv2_to_imgmsg(frame_bgr, "bgr8")
+        raw_msg.header = msg.header
+        self.pub_raw.publish(raw_msg)
 
         # Overlay visualization
         overlay = frame_bgr.copy()
@@ -259,6 +271,16 @@ class BeadStopJudgeNode(Node):
         comp_msg.format = "jpeg"
         comp_msg.data = bytes(cv2.imencode('.jpg', overlay, [cv2.IMWRITE_JPEG_QUALITY, 80])[1])
         self.pub_overlay_compressed.publish(comp_msg)
+
+        # 이미지 저장 (1회만)
+        if not self.image_saved:
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            save_dir = os.path.join(IMAGE_SAVE_DIR, f"bead_grinding_{timestamp}")
+            os.makedirs(save_dir, exist_ok=True)
+            cv2.imwrite(os.path.join(save_dir, "1_raw_camera.png"), frame_bgr)
+            cv2.imwrite(os.path.join(save_dir, "2_grinding_overlay.png"), overlay)
+            self.image_saved = True
+            self.get_logger().info(f"📁 그라인딩 판정 이미지 저장: {save_dir}")
 
 
         # # ---- LOGGING ----
