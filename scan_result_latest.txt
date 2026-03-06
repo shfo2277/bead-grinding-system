@@ -1,0 +1,9 @@
+Contour coverage: 30.29 % (thr 93%)
+  Slice y= 145 :   43px /   43px -> 100.00 %
+  Slice y= 204 :    0px /   42px -> 0.00 %
+  Slice y= 263 :    0px /   43px -> 0.00 %
+  Slice y= 322 :    0px /   40px -> 0.00 %
+  Slice y= 381 :    0px /   39px -> 0.00 %
+WidthMin: 0.00 % (thr 90%)
+Progress: 0.0 %
+JUDGE: NOK

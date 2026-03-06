@@ -14,12 +14,12 @@ import segmentation_models_pytorch as smp
 # =========================
 # CONFIG (너 환경에 맞게)
 # =========================
-DATA_ROOT = "/home/ho//BEADtrain/REAL"
-IMAGE_DIR = f"{DATA_ROOT}/fitimage"
-MASK_DIR  = f"{DATA_ROOT}/fitmask"
-MODEL_PATH = "/home/ho/BEADtrain/modelresult/1127unet.pth"  # 네 pth 경로
-IMAGE_SIZE = 1024
-THRESHOLD  = 0.5
+DATA_ROOT = "/workspace/BEADtrain/REAL"
+IMAGE_DIR = f"{DATA_ROOT}/end/endimg"
+MASK_DIR  = f"{DATA_ROOT}/end/endmask"
+MODEL_PATH = "/workspace/BEADtrain/modelresult/2026-02-12_19-28-57/unet_best.pth"
+IMAGE_SIZE = 1280
+THRESHOLD  = 0.4
 SEED = 42
 
 NUM_WORKERS = 2
@@ -40,7 +40,9 @@ def get_mask_path(img_path):
 # (학습 때 val/test에 쓰던 transform과 동일)
 eval_transform = A.Compose(
     [
-        A.Resize(IMAGE_SIZE, IMAGE_SIZE),
+        A.LongestMaxSize(max_size=IMAGE_SIZE),
+        A.PadIfNeeded(min_height=IMAGE_SIZE, min_width=IMAGE_SIZE,
+                      border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0),
         A.Normalize(mean=(0.485, 0.456, 0.406),
                     std=(0.229, 0.224, 0.225)),
         ToTensorV2(),
@@ -63,7 +65,7 @@ class BeadDataset(Dataset):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-        mask = (mask / 255.0).astype("float32")     # 0~1
+        mask = (mask > 127).astype(np.float32)        # 0 or 1
         mask = np.expand_dims(mask, axis=-1)        # H,W,1
 
         if self.transform is not None:
@@ -219,11 +221,25 @@ avg_acc  = sum_acc / n
 avg_time = float(np.mean(time_list_ms))
 p95_time = float(np.percentile(time_list_ms, 95))
 
-print("\n==============================")
-print(f"📊 Test Mean IoU        : {avg_iou:.4f}")
-print(f"📊 Test Mean Dice       : {avg_dice:.4f}")
-print(f"📊 Test Mean Precision  : {avg_prec:.4f}")
-print(f"📊 Test Mean Recall     : {avg_rec:.4f}")
-print(f"📊 Test Mean Pixel Acc  : {avg_acc:.4f}")
-print(f"⏱  Inference Time (ms) : mean {avg_time:.2f} ms / p95 {p95_time:.2f} ms  (batch={BATCH_SIZE})")
-print("==============================")
+result_lines = [
+    "==============================",
+    f"Model: {MODEL_PATH}",
+    f"Data : {IMAGE_DIR}",
+    f"Test samples: {n}  |  Threshold: {THRESHOLD}  |  ImageSize: {IMAGE_SIZE}",
+    "------------------------------",
+    f"📊 Test Mean IoU        : {avg_iou:.4f}",
+    f"📊 Test Mean Dice       : {avg_dice:.4f}",
+    f"📊 Test Mean Precision  : {avg_prec:.4f}",
+    f"📊 Test Mean Recall     : {avg_rec:.4f}",
+    f"📊 Test Mean Pixel Acc  : {avg_acc:.4f}",
+    f"⏱  Inference Time (ms) : mean {avg_time:.2f} ms / p95 {p95_time:.2f} ms  (batch={BATCH_SIZE})",
+    "==============================",
+]
+
+print("\n" + "\n".join(result_lines))
+
+# 모델 폴더에 결과 저장
+result_path = os.path.join(os.path.dirname(MODEL_PATH), "evaluation_result.txt")
+with open(result_path, 'w') as f:
+    f.write("\n".join(result_lines) + "\n")
+print(f"\n📁 결과 저장: {result_path}")

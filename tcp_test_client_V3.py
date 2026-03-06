@@ -14,6 +14,7 @@ import time
 import signal
 import threading
 import subprocess
+from datetime import datetime
 
 import rclpy
 from rclpy.node import Node
@@ -37,6 +38,8 @@ WORKSPACE = '/workspace/BEADtrain'
 CONTOUR_CSV = os.path.join(WORKSPACE, 'bead_contour.csv')
 WIDTH_CSV = os.path.join(WORKSPACE, 'bead_width.csv')
 WAYPOINT_CSV = os.path.join(WORKSPACE, 'bead_waypoints.csv')
+SCAN_RESULT_FILE = os.path.join(WORKSPACE, 'scan_result_latest.txt')
+GRIND_LOG_FILE = os.path.join(WORKSPACE, 'grinding_log.txt')
 
 STATUS_CODES = {
     0: "이동 중",
@@ -137,18 +140,22 @@ def ensure_align_depth():
         return False
 
 
-def start_node(script_name):
+def start_node(script_name, extra_env=None):
     """BEADtrain 폴더에서 Python 노드 실행"""
     cmd = (
         f"source /opt/ros/humble/setup.bash && "
         f"export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp && "
         f"cd {WORKSPACE} && python3 -u {script_name}"
     )
+    env = os.environ.copy()
+    if extra_env:
+        env.update(extra_env)
     proc = subprocess.Popen(
         ['bash', '-c', cmd],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         preexec_fn=os.setsid,
+        env=env,
     )
     print(f"  [NODE] {script_name} started (PID {proc.pid})")
     return proc
@@ -310,6 +317,25 @@ def status_text():
 def auto_grind_loop(sockets, ros_node):
     cycle = 0
 
+    # 세션 폴더 (이미지 저장용)
+    start_time = datetime.now()
+    session_name = start_time.strftime('%Y-%m-%d_%H-%M-%S')
+    session_dir = os.path.join(WORKSPACE, 'image', session_name)
+    os.makedirs(session_dir, exist_ok=True)
+    print(f"  [IMG] 이미지 폴더: {session_dir}")
+
+    # 로그 파일 (append 모드 - 계속 이어서 기록)
+    log_file = open(GRIND_LOG_FILE, 'a')
+    log_file.write(f"\n{'=' * 50}\n")
+    log_file.write(f"  그라인딩 시작: {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+    log_file.write(f"{'=' * 50}\n\n")
+    log_file.flush()
+    print(f"  [LOG] 로그 파일: {GRIND_LOG_FILE}")
+
+    # 스캔 결과 임시 파일 초기화
+    if os.path.exists(SCAN_RESULT_FILE):
+        os.remove(SCAN_RESULT_FILE)
+
     while True:
         cycle += 1
         print()
@@ -332,7 +358,7 @@ def auto_grind_loop(sockets, ros_node):
             old_mtime = 0
             if os.path.exists(CONTOUR_CSV):
                 old_mtime = os.path.getmtime(CONTOUR_CSV)
-            proc_unet = start_node('bead_unet_node.py')
+            proc_unet = start_node('bead_unet_node.py', {'GRIND_SESSION_DIR': session_dir})
             time.sleep(3)  # 모델 로딩 대기
 
             csv_ok = wait_for_csv(timeout=30, old_mtime=old_mtime)
@@ -401,10 +427,13 @@ def auto_grind_loop(sockets, ros_node):
         # ── STEP 7: 종료 판정 (bead_unet_node_after) ──
         print(f"\n[STEP 7] 그라인딩 판정 (bead_unet_node_after)")
         ros_node.stop_signal = False
-        proc_after = start_node('bead_unet_node_after.py')
+        proc_after = start_node('bead_unet_node_after.py', {
+            'GRIND_SESSION_DIR': session_dir,
+            'GRIND_SCAN_NUM': str(cycle),
+        })
         time.sleep(3)  # 모델 로딩 대기
 
-    #10초 동안 프레임 수신 (초당 15프레임 수신 중)
+    #10초 동안 프레임 수신 (1초당 15프레임 수신 중)
         stop_timeout = 8
         start_t = time.time()
         while time.time() - start_t < stop_timeout:
@@ -414,11 +443,38 @@ def auto_grind_loop(sockets, ros_node):
 
         stop_node(proc_after, 'bead_unet_node_after')
 
+        # 스캔 결과를 로그 파일에 기록
+        log_file.write(f"스캔 {cycle}회\n")
+        try:
+            with open(SCAN_RESULT_FILE, 'r') as sf:
+                scan_data = sf.read()
+            log_file.write(scan_data)
+        except FileNotFoundError:
+            log_file.write("  (스캔 결과 없음)\n")
+        log_file.write(f"{'-' * 50}\n\n")
+        log_file.flush()
+
         if ros_node.stop_signal:
+            end_time = datetime.now()
+            elapsed = end_time - start_time
+            log_file.write(f"{'=' * 50}\n")
+            log_file.write(f"  그라인딩 완료! (총 {cycle} 사이클)\n")
+            log_file.write(f"  종료: {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            log_file.write(f"  소요: {elapsed}\n")
+            log_file.write(f"{'=' * 50}\n")
+            log_file.close()
+
             print()
             print("=" * 50)
             print(f"  그라인딩 완료! (총 {cycle} 사이클)")
             print("=" * 50)
+            print(f"  [LOG] 로그 저장: {GRIND_LOG_FILE}")
+
+            # ── 홈 위치로 복귀 (CMD 1) ──
+            print(f"\n[STEP 8] 홈 위치 복귀 (CMD 1)")
+            send_command(sockets['Command'], 1)
+            wait_feedback(sockets['Feedback'], CMD_DONE_STATUS[1])
+            print("  홈 위치 도달 완료")
             return
         else:
             print(f"  비드 잔여 → 재가공 필요 (사이클 {cycle} 종료)")

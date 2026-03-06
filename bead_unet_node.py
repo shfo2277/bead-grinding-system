@@ -242,11 +242,18 @@ class BeadUNetNode(Node):
         return overlay
 
     def save_snapshot_images(self, frame_bgr: np.ndarray, mask_resized: np.ndarray):
-        """스냅샷 확정 시 4개 PNG 이미지 저장"""
-        # 타임스탬프 폴더 생성
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        save_dir = os.path.join(IMAGE_SAVE_DIR, timestamp)
+        """스냅샷 확정 시 이미지 저장"""
+        # 세션 폴더가 있으면 그 안의 recognition/ 에 저장, 없으면 기존 방식
+        session_dir = os.environ.get('GRIND_SESSION_DIR')
+        if session_dir:
+            save_dir = os.path.join(session_dir, "recognition")
+        else:
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            save_dir = os.path.join(IMAGE_SAVE_DIR, timestamp)
         os.makedirs(save_dir, exist_ok=True)
+
+        # 0) 흑백 마스크
+        cv2.imwrite(os.path.join(save_dir, "0_mask_bw.png"), mask_resized)
 
         # 1) 원본 카메라 이미지
         cv2.imwrite(os.path.join(save_dir, "1_raw_camera.png"), frame_bgr)
@@ -307,7 +314,7 @@ class BeadUNetNode(Node):
                 cv2.line(img_raw_path, path_pts[i], path_pts[i + 1], (0, 0, 255), 2)
         cv2.imwrite(os.path.join(save_dir, "6_raw_path_only.png"), img_raw_path)
 
-        self.get_logger().info(f"📁 이미지 6개 저장 완료: {save_dir}")
+        self.get_logger().info(f"📁 이미지 7개 저장 완료: {save_dir}")
 
     def _republish_snapshot(self):
         """확정된 스냅샷을 주기적으로 재발행 (RViz/브릿지 놓침 방지)"""

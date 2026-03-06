@@ -38,7 +38,7 @@ DATA_ROOT = "/home/ho/BEADtrain/REAL"
 # MASK_DIR  = f"{DATA_ROOT}/fitmask"
 
 IMAGE_DIR = f"{DATA_ROOT}/endgrinding"
-MASK_DIR  = f"{DATA_ROOT}/mask"
+MASK_DIR  = f"{DATA_ROOT}/endgrindingmask"
 
 IMAGE_SIZE = 1024          # 원래 코드에서 쓰던 값
 BATCH_SIZE = 6             # 원래 batch_size

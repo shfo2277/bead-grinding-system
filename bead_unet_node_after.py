@@ -33,8 +33,10 @@ WIDTH_CSV   = "/workspace/BEADtrain/bead_width.csv"
 
 IMAGE_SAVE_DIR = "/workspace/BEADtrain/image"
 
-SHAPE_THRESH = 0.95
-WIDTH_THRESH = 0.95
+SHAPE_THRESH = 0.93
+WIDTH_THRESH = 0.90
+
+SCAN_RESULT_FILE = "/workspace/BEADtrain/scan_result_latest.txt"
 
 MEAN = (0.485, 0.456, 0.406)
 STD  = (0.229, 0.224, 0.225)
@@ -274,11 +276,16 @@ class BeadStopJudgeNode(Node):
 
         # 이미지 저장 (1회만)
         if not self.image_saved:
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            save_dir = os.path.join(IMAGE_SAVE_DIR, f"bead_grinding_{timestamp}")
+            session_dir = os.environ.get('GRIND_SESSION_DIR')
+            scan_num = os.environ.get('GRIND_SCAN_NUM', '0')
+            if session_dir:
+                save_dir = os.path.join(session_dir, f"scan_{scan_num}")
+            else:
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                save_dir = os.path.join(IMAGE_SAVE_DIR, f"bead_grinding_{timestamp}")
             os.makedirs(save_dir, exist_ok=True)
-            cv2.imwrite(os.path.join(save_dir, "1_raw_camera.png"), frame_bgr)
-            cv2.imwrite(os.path.join(save_dir, "2_grinding_overlay.png"), overlay)
+            cv2.imwrite(os.path.join(save_dir, "raw.png"), frame_bgr)
+            cv2.imwrite(os.path.join(save_dir, "overlay.png"), overlay)
             self.image_saved = True
             self.get_logger().info(f"📁 그라인딩 판정 이미지 저장: {save_dir}")
 
@@ -319,6 +326,20 @@ class BeadStopJudgeNode(Node):
             self.get_logger().info(
                 f"✅ WIDTH OK = {width_ok}, SHAPE OK = {shape_ratio >= SHAPE_THRESH}"
             )
+
+            # 최신 스캔 결과를 임시 파일에 덮어쓰기 (tcp_test_client_V3에서 읽어감)
+            try:
+                lines = []
+                lines.append(f"Contour coverage: {shape_ratio * 100:.2f} % (thr {SHAPE_THRESH*100:.0f}%)")
+                for y, cur_w, ref_w, ratio in width_details:
+                    lines.append(f"  Slice y={y:4d} : {cur_w:4d}px / {ref_w:4d}px -> {ratio * 100:.2f} %")
+                lines.append(f"WidthMin: {min_width_ratio * 100:.2f} % (thr {WIDTH_THRESH*100:.0f}%)")
+                lines.append(f"Progress: {progress_pct:.1f} %")
+                lines.append(f"JUDGE: {'OK' if ok else 'NOK'}")
+                with open(SCAN_RESULT_FILE, 'w') as f:
+                    f.write('\n'.join(lines) + '\n')
+            except Exception:
+                pass
 
         # ---- STOP ----
         if (
