@@ -1,0 +1,168 @@
+================================================================================
+  새 PC에서 Docker 환경 구축 — 명령어 모음
+  (이미지 파일 다운로드 후 실행)
+================================================================================
+
+
+================================================================================
+  사전 준비 (새 PC에 설치되어 있어야 하는 것)
+================================================================================
+
+  1. NVIDIA 드라이버
+     sudo apt install nvidia-driver-570
+     재부팅 후 확인: nvidia-smi
+
+  2. Docker
+     sudo apt-get update
+     sudo apt-get install docker.io
+     sudo usermod -aG docker $USER
+     재로그인 후 확인: docker --version
+
+  3. NVIDIA Container Toolkit
+     curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
+       sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+     curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+       sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+       sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+     sudo apt-get update
+     sudo apt-get install -y nvidia-container-toolkit
+     sudo nvidia-ctk runtime configure --runtime=docker
+     sudo systemctl restart docker
+
+
+================================================================================
+  파일 준비
+================================================================================
+
+  OneDrive에서 아래 파일을 다운로드한다:
+
+    bead-gpu-full.tar.gz          — bead_gpu 이미지 (bridge + 추가설치 전부 포함)
+    rx160-noetic-full.tar.gz      — rx160_noetic_clone용 이미지
+
+  BEADtrain 폴더도 복사해온다 (코드 + 모델 + 데이터)
+
+  ※ bead-gpu-full은 컨테이너를 통째로 저장한 것이라
+     ros1_bridge, .bashrc alias, 추가 패키지가 전부 포함되어 있다.
+
+
+================================================================================
+  [A] bead_gpu 컨테이너 (ROS2 Humble + GPU + 카메라 + UNet)
+================================================================================
+
+  # 1. 이미지 불러오기
+  gunzip -c bead-gpu-full.tar.gz | docker load
+
+  # 2. 확인
+  docker images bead-gpu-full
+
+  # 3. 컨테이너 생성 (경로를 새 PC에 맞게 변경)
+  docker run -it \
+    --name bead_gpu \
+    --runtime=nvidia \
+    --gpus all \
+    --privileged \
+    --network host \
+    -v /dev:/dev \
+    -v /home/새유저/BEADtrain:/workspace/BEADtrain \
+    -w /workspace/BEADtrain \
+    -e NVIDIA_VISIBLE_DEVICES=all \
+    -e NVIDIA_DRIVER_CAPABILITIES=compute,utility,video \
+    bead-gpu-full:latest
+
+  # 4. GPU 동작 확인 (컨테이너 안에서)
+  python3 -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+
+  # 5. 컨테이너에서 나오기
+  exit
+
+  ※ bead-gpu-full 이미지는 .bashrc, alias, ros1_bridge가 전부 포함되어 있어서
+    추가 설정 없이 바로 사용 가능하다.
+
+
+================================================================================
+  [B] rx160_noetic_clone 컨테이너 (ROS1 Noetic + MoveIt + 로봇 드라이버)
+================================================================================
+
+  # 1. 이미지 불러오기
+  gunzip -c rx160-noetic-full.tar.gz | docker load
+
+  # 2. 확인
+  docker images rx160_noetic_full
+
+  # 3. GUI 허용 (호스트에서)
+  xhost +local:docker
+
+  # 4. 컨테이너 생성 (경로를 새 PC에 맞게 변경)
+  docker run -it \
+    --name rx160_noetic_clone \
+    --network host \
+    -v /tmp/.X11-unix:/tmp/.X11-unix \
+    -v /home/새유저/urdf_file:/root/urdf_file \
+    -e DISPLAY=$DISPLAY \
+    -e QT_X11_NO_MITSHM=1 \
+    rx160_noetic_full:latest
+
+  # 5. 컨테이너에서 나오기
+  exit
+
+
+================================================================================
+  [C] 호스트 단축어 등록 (~/.bashrc에 추가)
+================================================================================
+
+  cat >> ~/.bashrc << 'EOF'
+
+  # === Docker 단축어 ===
+  alias sta='docker start -ai rx160_noetic_clone'
+  alias bas='docker exec -it rx160_noetic_clone bash'
+  alias bea='docker start -ai bead_gpu'
+  alias bead='docker exec -it bead_gpu bash'
+  alias hbridge='docker exec -it bead_gpu bash /opt/ros-humble-ros1-bridge/start_bridge.sh'
+  alias xon='xhost +local:root && echo "GUI access allowed"'
+  alias xoff='xhost -local:root && echo "GUI access revoked"'
+  EOF
+
+  source ~/.bashrc
+
+
+================================================================================
+  [D] 동작 확인 — 전체 실행 순서
+================================================================================
+
+  --- 터미널 1: Noetic 컨테이너 시작 ---
+  sta
+  (roscore + 로봇 드라이버 실행)
+
+  --- 터미널 2: bead_gpu 시작 + 카메라 ---
+  bead
+  ros2 launch realsense2_camera rs_launch.py \
+    depth_module.depth_profile:=848x480x15 \
+    depth_module.color_profile:=1280x720x15 \
+    publish_tf:=false
+
+  --- 터미널 3: ros1_bridge ---
+  hbridge
+
+  --- 터미널 4: 메인 노드 ---
+  bead
+  cd /workspace/BEADtrain/nodes
+  python3 -u tcp_test_client_V3.py
+
+
+================================================================================
+  단축어 정리
+================================================================================
+
+  호스트에서:
+    sta       rx160_noetic_clone 시작 (attach)
+    bas       rx160_noetic_clone에 bash 진입
+    bea       bead_gpu 시작 (attach)
+    bead      bead_gpu에 bash 진입
+    hbridge   ros1_bridge 실행 (bead_gpu 안에서)
+    xon       Docker GUI 허용
+
+  bead_gpu 안에서:
+    real      카메라 실행 (1280x720)
+    sc        ROS2 환경 source
+
+================================================================================

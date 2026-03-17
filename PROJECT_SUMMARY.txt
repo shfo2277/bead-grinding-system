@@ -1,0 +1,312 @@
+================================================================================
+  BEADtrain 프로젝트 요약
+================================================================================
+
+비드 그라인딩 자동화 시스템.
+카메라로 비드를 인식하고, 로봇이 그라인딩하고, 다시 스캔해서 판정하는 과정을 반복한다.
+UNet 세그멘테이션 모델로 비드를 인식하고, Staubli RX160 로봇과 TCP 소켓으로 통신한다.
+
+
+================================================================================
+  폴더별 요약
+================================================================================
+
+[nodes/] ---- 실시간 실행되는 핵심 ROS2 노드 4개. bead_gpu 컨테이너 안에서 돌아간다.
+
+  tcp_test_client_V3.py
+    전체 그라인딩 루프를 관리하는 오케스트레이터.
+    로봇과 TCP 소켓 4개로 통신하며 인식-경로-그라인딩-판정 사이클을 반복 제어한다.
+
+  bead_unet_node.py
+    그라인딩 전 비드 인식. 카메라 영상에서 UNet으로 비드를 찾고 외곽선/폭 CSV를 저장한다.
+
+  bead_pose_node.py
+    비드 마스크 + 뎁스로 3D 좌표를 계산하고, PCA 기반 웨이포인트 경로를 생성한다.
+
+  bead_unet_node_after.py
+    그라인딩 후 재스캔 판정. 기준 외곽선 대비 제거율을 계산해 OK/NOK을 판단하고 STOP을 발행한다.
+
+
+[train/] ---- UNet 모델 학습 및 평가 코드.
+
+  bead_train.py
+    UNet 학습 초기 버전 (1024 입력, A.Resize). bead_train_end.py로 대체됨.
+
+  bead_train_end.py
+    UNet 학습 현재 버전 (1280 입력, 비율 유지 패딩, pos_weight 자동 계산).
+
+  bead_train_end_test.py
+    기존 모델을 학습 없이 Train/Val/Test 전체 평가만 수행.
+
+  evaluation.py
+    Test set 평가 + GPU 추론 속도(ms) 측정.
+
+  convert_json_to_mask_png.py
+    Labelme JSON 라벨링 파일을 학습용 바이너리 마스크 PNG로 변환.
+
+  unet_diagram.py
+    UNet 아키텍처 블록 다이어그램 이미지 생성.
+
+
+[tools/] ---- 오프라인 분석, 시각화 유틸리티.
+
+  bead_judge_offline.py
+    bead_unet_node_after.py의 오프라인 버전. 이미지 파일로 판정 결과를 시각화한다.
+
+  test_overlay.py
+    단일 이미지에 UNet 추론해서 오버레이/마스크 이미지를 빠르게 확인.
+
+  visualize_segmentation.py
+    세그멘테이션 결과를 원본/마스크/오버레이 3열로 시각화.
+
+  calc_tcp_waypoints.py
+    캘리브레이션 결과로 TCP(그라인더) 기준 웨이포인트를 계산.
+
+
+[test/] ---- 카메라, 뎁스 센서 테스트 스크립트.
+
+  camera.py
+    D405 컬러 영상 녹화 + 's' 키로 프레임 캡처.
+
+  cameravideo.py
+    D405 컬러 스트림 뷰어 + 원본 해상도 PNG 캡처.
+
+  camera_test_node.py
+    카메라 TF가 제대로 되는지 확인하는 ROS2 테스트 노드.
+
+  depth_accuracy_test.py
+    D405 뎁스 정확도 측정. ROI 중심의 depth 통계를 실시간 표시.
+
+  depth_bead_height_test.py
+    기준 평면과 비드 영역의 depth 차이로 비드 높이(mm) 측정.
+
+  depth_check.py
+    ROS2 depth 토픽 1회 수신해서 중앙 depth 값 확인.
+
+
+[calibration/] ---- ArUco 보드를 이용한 핸드-아이 캘리브레이션.
+
+  handeye_calib_node.py
+    메인 캘리브레이션 노드. 여러 자세에서 샘플 수집 후 OpenCV hand-eye 계산.
+
+  handeye_calib_node copy.py
+    위 노드의 백업 복사본.
+
+  cal.py
+    수집된 샘플의 잔차(residual) 분석. T_base_target 일관성 검증.
+
+  find_transform.py
+    티치펜던트 플랜지 좌표와 비교해 T_world_base 변환 행렬 탐색.
+
+  tf_test_aruco.py
+    ArUco 보드 인식 + TF 체인 좌표 출력 테스트 (GUI 없이 터미널).
+
+  verify_node.py
+    캘리브레이션 검증. 로봇을 움직이면서 보드 좌표 일관성 확인 (std < 3mm 양호).
+
+  view_samples.py
+    수집된 캘리브레이션 샘플 데이터(reproj 오차, R/t 행렬) 확인.
+
+
+[VAL3_PA_grd_fin/] ---- Staubli CS9 컨트롤러에서 실행되는 VAL3 로봇 프로그램.
+                        tcp_test_client_V3.py와 TCP 통신하는 로봇 측 코드.
+
+  _mainLoop.pgx       메인 루프 — TCP 명령 수신 후 분기
+  _recvWaypoints.pgx   웨이포인트 수신 (Motion 포트)
+  _recvFloat.pgx       float 데이터 수신
+  _sendJoint.pgx       관절값 전송 (Joint 포트)
+  _sendStatus.pgx      상태 전송 (Feedback 포트)
+  _startPass.pgx       그라인딩 패스 시작
+  _moveToScan.pgx      스캔 위치로 이동
+  _finish.pgx          작업 종료 처리
+  start.pgx / stop.pgx 프로그램 시작/정지
+  Alter.pgx            실시간 경로 보정
+  _Io.pgx              IO 제어 (그라인더 ON/OFF)
+
+
+[staubli_configs/] ---- Staubli 컨트롤러 설정 백업 (.cfx). 코드에서 참조 안 함.
+
+  arm.cfx              로봇 팔 기구학 설정
+  cell.cfx             작업 셀 환경 설정
+  controller.cfx       컨트롤러 통신/시스템 설정
+
+
+[modelresult/] ---- 학습된 UNet 모델 가중치와 평가 결과.
+
+  1125unet.pth                          인식용 모델 (bead_unet_node.py, 1024 입력)
+  2026-03-07_23-23-27/unet_best.pth     판정용 모델 (bead_unet_node_after.py, 1280 입력)
+
+
+[REAL/] ---- 학습용 이미지/마스크 데이터셋 + 카메라 녹화 영상.
+
+  end/endimg, end/endmask               그라인딩 후 이미지/마스크 (학습용)
+  Bead학습이미지/fitimage, fitmask       비드 이미지/마스크 (학습용)
+
+
+[scan_image/] ---- 실험별 그라인딩 스캔 이미지 모음.
+
+  2026-03-04_08-24-56실험2/             실험 2 (recognition + scan_1~9)
+  2026-03-05_05-49-02실험3/             실험 3
+
+
+[archive/] ---- 이전 버전 코드 백업. 현재 사용하지 않음.
+
+  bead_pose_node실시간 조인트 수신.py    bead_pose_node 이전 버전 (TF lookup 방식)
+  bead_train copy.py                    bead_train.py 복사본
+  deletefile.py                         이미지/마스크 매칭 안 되는 파일 삭제 유틸
+
+
+================================================================================
+  실행 환경 및 명령어
+================================================================================
+
+이 프로젝트는 3개 환경에서 나눠서 실행된다.
+
+  [A] bead_gpu 컨테이너 (Docker)
+      - ROS2 Humble, Ubuntu 22.04, CUDA GPU
+      - 컨테이너 안 경로: /workspace/BEADtrain/ (호스트 /home/ho/BEADtrain/ 마운트)
+      - PyTorch, segmentation_models_pytorch, albumentations, cv_bridge 설치됨
+      - 컨테이너 진입: docker exec -it bead_gpu bash
+
+  [B] 호스트 (Ubuntu 24.04)
+      - ROS2 Jazzy
+      - pyrealsense2 설치됨 (카메라 직접 접근)
+      - GPU 없이 동작하는 간단 스크립트만 실행 가능
+
+  [C] Staubli CS9 컨트롤러
+      - VAL3 프로그램 실행 환경
+      - SRS(Staubli Robotics Suite)로 업로드
+
+
+--------------------------------------------------------------------------------
+  nodes/ — 실행 환경: [A] bead_gpu 컨테이너
+--------------------------------------------------------------------------------
+
+  실제 운용 시에는 tcp_test_client_V3.py가 나머지 3개 노드를 subprocess로 자동 실행한다.
+  수동으로 개별 테스트할 때는 아래처럼 실행한다.
+
+  # 컨테이너 진입
+  docker exec -it bead_gpu bash
+
+  # ROS2 + DDS 환경 설정 (컨테이너 안에서)
+  source /opt/ros/humble/setup.bash
+  export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+
+  # 카메라 먼저 실행 (별도 터미널)
+  ros2 launch realsense2_camera rs_launch.py \
+    depth_module.depth_profile:=848x480x15 \
+    depth_module.color_profile:=1280x720x15 \
+    publish_tf:=false
+
+  # 전체 자동 실행 (오케스트레이터)
+  cd /workspace/BEADtrain/nodes
+  python3 -u tcp_test_client_V3.py
+
+  # 또는 개별 노드 수동 실행
+  python3 -u bead_unet_node.py
+  python3 -u bead_pose_node.py
+  python3 -u bead_unet_node_after.py
+
+
+--------------------------------------------------------------------------------
+  train/ — 실행 환경: [A] bead_gpu 컨테이너 (GPU 필요)
+--------------------------------------------------------------------------------
+
+  docker exec -it bead_gpu bash
+
+  cd /workspace/BEADtrain/train
+  python3 bead_train_end.py              # 모델 학습
+  python3 bead_train_end_test.py         # 기존 모델 평가
+  python3 evaluation.py                  # Test set 평가 + 추론 속도
+
+  python3 convert_json_to_mask_png.py    # JSON→마스크 변환 (호스트에서도 가능)
+  python3 unet_diagram.py               # 다이어그램 생성 (matplotlib만 필요, 호스트도 가능)
+
+
+--------------------------------------------------------------------------------
+  tools/ — 실행 환경: [A] bead_gpu 컨테이너 (GPU + albumentations 필요)
+--------------------------------------------------------------------------------
+
+  docker exec -it bead_gpu bash
+
+  cd /workspace/BEADtrain/tools
+  python3 bead_judge_offline.py          # 오프라인 판정 시각화
+  python3 test_overlay.py                # 단일 이미지 추론 테스트
+  python3 visualize_segmentation.py      # 세그멘테이션 시각화
+  python3 calc_tcp_waypoints.py          # TCP 웨이포인트 계산 (GPU 불필요, 호스트도 가능)
+
+
+--------------------------------------------------------------------------------
+  test/ — 실행 환경: 파일마다 다름
+--------------------------------------------------------------------------------
+
+  camera.py, cameravideo.py
+    환경: [B] 호스트 (pyrealsense2 직접 사용, ROS2 불필요)
+    python3 camera.py
+    python3 cameravideo.py
+
+  depth_accuracy_test.py, depth_bead_height_test.py
+    환경: [B] 호스트 (pyrealsense2 직접 사용)
+    python3 depth_accuracy_test.py
+    python3 depth_bead_height_test.py
+
+  camera_test_node.py
+    환경: [A] bead_gpu 컨테이너 (ROS2 노드, TF 필요)
+    source /opt/ros/humble/setup.bash
+    python3 camera_test_node.py
+
+  depth_check.py
+    환경: [A] bead_gpu 컨테이너 (ROS2 토픽 구독)
+    source /opt/ros/humble/setup.bash
+    python3 depth_check.py
+
+
+--------------------------------------------------------------------------------
+  calibration/ — 실행 환경: [A] bead_gpu 컨테이너 (ROS2 + 카메라 + TF 필요)
+--------------------------------------------------------------------------------
+
+  docker exec -it bead_gpu bash
+  source /opt/ros/humble/setup.bash
+  export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+
+  cd /workspace/BEADtrain/calibration
+  python3 handeye_calib_node.py          # 캘리브레이션 샘플 수집 + 계산
+  python3 verify_node.py                 # 캘리브레이션 검증
+  python3 tf_test_aruco.py               # ArUco TF 테스트
+
+  # 아래는 오프라인 분석 (ROS2 불필요, 호스트에서도 가능)
+  python3 cal.py                         # 잔차 분석
+  python3 find_transform.py              # 변환 행렬 탐색
+  python3 view_samples.py                # 샘플 데이터 확인
+
+
+--------------------------------------------------------------------------------
+  VAL3_PA_grd_fin/ — 실행 환경: [C] Staubli CS9 컨트롤러
+--------------------------------------------------------------------------------
+
+  Python이 아닌 VAL3 프로그램이다.
+  SRS(Staubli Robotics Suite) IDE에서 프로젝트를 열고 CS9 컨트롤러에 업로드한다.
+  또는 USB/FTP로 컨트롤러에 직접 복사한다.
+  티치펜던트에서 _PA_grd_fin 프로젝트를 선택하고 start를 실행한다.
+
+
+--------------------------------------------------------------------------------
+  staubli_configs/ — 실행 환경: [C] Staubli CS9 컨트롤러
+--------------------------------------------------------------------------------
+
+  .cfx 파일은 실행하는 것이 아니라 컨트롤러에 업로드하는 설정 백업이다.
+  SRS 또는 FTP로 CS9에 복원할 때 사용한다.
+
+
+================================================================================
+  루트 파일
+================================================================================
+
+  bead_contour.csv          비드 외곽선 좌표
+  bead_width.csv            비드 폭 데이터
+  bead_waypoints.csv        비드 웨이포인트 좌표
+  scan_result_latest.txt    최신 스캔 판정 결과 (after 노드 → tcp_client가 읽음)
+  grinding_log.txt          그라인딩 로그
+  cyclonedds.xml            CycloneDDS 설정
+
+================================================================================
