@@ -281,7 +281,7 @@ class BeadStopJudgeNode(Node):
         # 빨강: overcut = 모델 인식 AND 기준 외부
         overcut = mask_bool & ~ref_bool
 
-        has_overcut = np.count_nonzero(overcut) > 0
+        has_overcut = np.count_nonzero(overcut) >= 40
 
         shape_ok = (shape_ratio >= SHAPE_THRESH)
         ok = shape_ok or has_overcut

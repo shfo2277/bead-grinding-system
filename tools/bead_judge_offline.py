@@ -18,10 +18,15 @@ from albumentations.pytorch import ToTensorV2
 # ==============================
 # CONFIG
 # ==============================
-SESSION_DIR = "/workspace/BEADtrain/image/2026-03-04_08-24-56 실험2"
-IMAGE_PATHS = [f"{SESSION_DIR}/scan_{i}/1_raw_camera.png" for i in range(1, 12)]
+SESSION_DIR = "/workspace/BEADtrain/scan_image/2026-03-04_08-24-56실험2"
+# scan_* 폴더 자동 탐지 (번호순 정렬)
+_scan_dirs = sorted(
+    [d for d in os.listdir(SESSION_DIR) if d.startswith("scan_") and os.path.isdir(os.path.join(SESSION_DIR, d))],
+    key=lambda d: int(d.split("_")[1]),
+)
+IMAGE_PATHS = [os.path.join(SESSION_DIR, d, "1_raw_camera.png") for d in _scan_dirs]
 MODEL_PATH = "/workspace/BEADtrain/modelresult/2026-03-07_23-23-27/unet_best.pth"
-CONTOUR_CSV = f"{SESSION_DIR}/recognition/bead_contour.csv"
+CONTOUR_CSV = os.path.join(SESSION_DIR, "recognition", "bead_contour.csv")
 
 IMAGE_SIZE = 1280
 THRESHOLD = 0.5
@@ -77,6 +82,8 @@ print(f"Device: {DEVICE}")
 # Load reference contour
 ref_contour = load_contour_csv(CONTOUR_CSV)
 print(f"Reference contour: {CONTOUR_CSV} ({len(ref_contour)} points)")
+
+csv_rows = []
 
 for IMAGE_PATH in IMAGE_PATHS:
     # Load image
@@ -135,12 +142,47 @@ for IMAGE_PATH in IMAGE_PATHS:
     residual = ref_bool & ~mask_bool
     overcut = mask_bool & ~ref_bool
 
+    overcut_px = np.count_nonzero(overcut)
+    has_overcut = overcut_px >= 40
+    ok = shape_ok or has_overcut
+
     overlay[grinding] = (alpha * overlay[grinding] + alpha * np.array([0, 255, 0])).astype(np.uint8)
     overlay[residual] = (alpha * overlay[residual] + alpha * np.array([0, 165, 255])).astype(np.uint8)
     overlay[overcut]  = (alpha * overlay[overcut]  + alpha * np.array([0, 0, 255])).astype(np.uint8)
 
+    # 색상만 오버레이 (텍스트 없음)
     overlay_path = os.path.join(save_dir, "judge_overlay.png")
     cv2.imwrite(overlay_path, overlay)
     print(f"  Saved: {overlay_path}")
 
-print("\n완료!")
+    # 3) 텍스트 포함 오버레이 — bead_unet_node_after.py 와 동일 형식
+    overlay_text = overlay.copy()
+    put_label(overlay_text, f"Progress: {progress_pct:5.1f} %", (20, 40))
+    put_label(overlay_text, f"Contour : {shape_ratio*100:5.1f} % (thr {SHAPE_THRESH*100:.0f}%)", (20, 80))
+    if has_overcut:
+        put_label(overlay_text, f"Overcut : detected", (20, 120))
+    ok_color = (0, 255, 0) if ok else (0, 0, 255)
+    put_label(overlay_text, f"JUDGE: {'OK' if ok else 'NOK'}", (20, 170), scale=1.0, thickness=3, color=ok_color)
+
+    overlay_text_path = os.path.join(save_dir, "judge_progress.png")
+    cv2.imwrite(overlay_text_path, overlay_text)
+    print(f"  Saved: {overlay_text_path}")
+
+    # CSV 행 추가
+    scan_name = os.path.basename(os.path.dirname(IMAGE_PATH))
+    csv_rows.append([scan_name, f"{progress_pct:.1f}", f"{shape_ratio*100:.2f}", overcut_px, "OK" if ok else "NOK"])
+
+# 결과 텍스트 저장
+result_path = os.path.join(SESSION_DIR, "judge_result.txt")
+with open(result_path, "w") as f:
+    for i, row in enumerate(csv_rows):
+        f.write(f"pass: {row[0]}\n")
+        f.write(f"progress_%: {row[1]}\n")
+        f.write(f"contour_coverage_%: {row[2]}\n")
+        f.write(f"overcut_px: {row[3]}\n")
+        f.write(f"judge: {row[4]}\n")
+        if i < len(csv_rows) - 1:
+            f.write("---\n")
+print(f"\nResult saved: {result_path}")
+
+print("완료!")
