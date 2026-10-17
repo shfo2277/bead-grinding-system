@@ -12,6 +12,16 @@
                                          재스캔 · 종료점 판정(UNet)
 ```
 
+## 시연
+
+<p align="center">
+  <img src="docs/grinding_demo.gif" width="360">
+</p>
+
+위: 그라인딩 중인 카메라 영상 / 아래: 재스캔 후 판정 오버레이 (기준 외곽선 대비 연삭 비율, OK/NOK)
+
+▶ [전체 루프 시연 영상 (1분, 3배속)](docs/grinding_demo.mp4) – 터미널 로그, 카메라, 판정 화면이 함께 나오는 화면 녹화
+
 ## 주요 기능
 
 **1. 비드 인식** – `nodes/bead_unet_node.py`
