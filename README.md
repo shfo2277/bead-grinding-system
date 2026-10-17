@@ -42,6 +42,11 @@
 - 기준 외곽선 대비 연삭된 영역 비율(**contour coverage ≥ 93%**)이면 OK, 기준 밖까지 깎인 경우(overcut)도 정지
 - 결과를 색으로 표시: 🟩 연삭 완료 · 🟧 잔여 비드 · 🟥 과삭
 
+<p align="center">
+  <img src="docs/judge_overlay.png" width="500"><br>
+  <sub>판정 오버레이 예시 – 비드 대부분이 연삭 완료(초록)로 인식되고, 왼쪽 가장자리 일부가 과삭(빨강)으로 표시됨</sub>
+</p>
+
 **5. 핸드-아이 캘리브레이션** – `calibration/`
 - ArUco 보드로 eye-in-hand 캘리브레이션, 35개 로봇 자세에서 샘플 수집
 - 잔차가 큰 샘플을 걸러낸 뒤 OpenCV 5가지 방법(TSAI, PARK, HORAUD, DANIILIDIS, ANDREFF)을 비교해 median 잔차가 가장 작은 **TSAI(0.55 mm)** 선택 (`cal.py`)
