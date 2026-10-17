@@ -42,10 +42,12 @@
 - 기준 외곽선 대비 연삭된 영역 비율(**contour coverage ≥ 93%**)이면 OK, 기준 밖까지 깎인 경우(overcut)도 정지
 - 결과를 색으로 표시: 🟩 연삭 완료 · 🟧 잔여 비드 · 🟥 과삭
 
-<p align="center">
-  <img src="docs/judge_overlay.png" width="500"><br>
-  <sub>판정 오버레이 예시 – 비드 대부분이 연삭 완료(초록)로 인식되고, 왼쪽 가장자리 일부가 과삭(빨강)으로 표시됨</sub>
-</p>
+<table>
+  <tr>
+    <td align="center"><img src="docs/judge_nok.png" width="400"><br><sub><b>NOK</b> – 연삭 중간: contour 58.7%, 테두리에 잔여 비드(주황)</sub></td>
+    <td align="center"><img src="docs/judge_ok.png" width="400"><br><sub><b>OK</b> – 연삭 완료: contour 97.0% (기준 93%) → 자동 정지</sub></td>
+  </tr>
+</table>
 
 **5. 핸드-아이 캘리브레이션** – `calibration/`
 - ArUco 보드로 eye-in-hand 캘리브레이션, 35개 로봇 자세에서 샘플 수집
