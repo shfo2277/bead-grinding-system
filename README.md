@@ -21,7 +21,7 @@
 <table>
   <tr>
     <td align="center" width="32%"><img src="docs/motion_check.gif" width="240"><br><sub>그라인더를 끈 상태로 생성한 경로를 실제 로봇이 비드를 따라 이동하는지 확인 (2배속) · <a href="docs/motion_check.mp4">MP4</a></sub></td>
-    <td align="center"><img src="docs/bgs_hardware.jpg" width="240"><br><sub>스핀들 그라인더 + RealSense D405 · 정반 위에 고정한 용접 비드 시편</sub></td>
+    <td align="center"><img src="docs/bgs_hardware.jpg" width="420"><br><sub>Stäubli RX160 + 스핀들 그라인더 + RealSense D405 · 정반 위에 고정한 용접 비드 시편</sub></td>
   </tr>
 </table>
 
