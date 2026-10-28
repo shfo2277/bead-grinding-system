@@ -16,6 +16,15 @@
 
 ▶ [전체 루프 시연 영상 (1분, 3배속)](docs/grinding_demo.mp4) – 터미널 로그, 카메라, 판정 화면이 함께 나오는 화면 녹화
 
+### 실로봇 모션 검증 · 하드웨어
+
+<table>
+  <tr>
+    <td align="center" width="32%"><img src="docs/motion_check.gif" width="240"><br><sub>그라인더를 끈 상태로 생성한 경로를 실제 로봇이 비드를 따라 이동하는지 확인 (2배속) · <a href="docs/motion_check.mp4">MP4</a></sub></td>
+    <td align="center"><img src="docs/bgs_hardware.jpg" width="560"><br><sub>Stäubli RX160 + 스핀들 그라인더 + RealSense D405 · 정반 위에 고정한 용접 비드 시편</sub></td>
+  </tr>
+</table>
+
 ## 핵심 결과
 
 - **완료 영역 인식 모델**: 가공 후 평탄화된 영역을 분할하는 U-Net – IoU **0.97** / Dice **0.98** / Precision **0.97** / Recall **0.99**, 추론 약 **39 ms**
