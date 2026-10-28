@@ -154,7 +154,7 @@ sequenceDiagram
 | 항목 | 내용 |
 | --- | --- |
 | 모델 | `segmentation_models_pytorch` U-Net (ResNet34, ImageNet 사전학습), 완료 영역 이진 분할 |
-| 데이터 | 가공 후 비드를 각도·조명·거리를 바꿔 직접 촬영 · Datature Nexus(SAM 기반 IntelliBrush)로 라벨링한 194장, random 70/15/15 (135/29/30, seed 42) |
+| 데이터 | 가공 후 비드를 각도·조명·거리를 바꿔 직접 촬영 · 라벨링한 194장 (초기 Labelme 폴리곤 → Datature Nexus(SAM 기반 IntelliBrush)로 전환), random 70/15/15 (135/29/30, seed 42) |
 | 입력 | 1280, 비율 유지 리사이즈 + 패딩 (`LongestMaxSize` + `PadIfNeeded`) |
 | 손실 / 최적화 | BCE(pos_weight 자동 계산) + Dice / Adam 1e-4, ReduceLROnPlateau, EarlyStopping(patience 7) |
 | 판정 threshold | 0.4 |
