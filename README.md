@@ -6,15 +6,6 @@
 카메라로 용접 비드를 인식하고, 산업용 로봇(Stäubli RX160)이 비드를 그라인딩한 뒤 **다시 스캔해서 연삭이 끝났는지 스스로 판정**하는 자동화 시스템입니다.
 판정이 OK가 나올 때까지 `스캔 → 경로 생성 → 그라인딩 → 재스캔 → 판정` 사이클을 반복합니다.
 
-```
- RealSense D405 ─▶ bead_unet_node ─▶ bead_pose_node ──▶ tcp_test_client_V3 ──TCP×4──▶ Stäubli RX160 (VAL3)
-   (컬러+뎁스)       기준 비드 인식      3D 경로 생성          오케스트레이터                    그라인딩
-                                                               ▲
-                                                               │ OK → 정지 / NOK → 다음 패스
-                                         bead_unet_node_after ─┘
-                                         재스캔 · 완료 영역 판정
-```
-
 ## 시연
 
 <p align="center">
@@ -31,6 +22,89 @@
 - **종료 판정**: 기준 비드 외곽선 대비 완료 영역 **93% 이상이면 정상 종료**, 기준 밖 가공이 감지되면 **안전 정지**
 - **핸드-아이 재캘리브레이션**: 35개 자세 → 이상치 제거 후 28개 사용, 잔차 평균 **0.73 mm** (중앙값 0.55 mm)
 - **로봇 통신 직접 구현**: Python ROS 2 오케스트레이터 ↔ VAL3 프로그램을 **TCP 소켓 4개**로 연결, 자동 루프 + 단계별 수동 실행
+
+## 시스템 구성
+
+```mermaid
+flowchart LR
+    subgraph PC["PC · bead_gpu 컨테이너 (ROS 2 Humble · CUDA)"]
+        direction LR
+        CAM["RealSense D405<br/>color · aligned depth"]
+        U1["bead_unet_node<br/>기준 비드 인식"]
+        POSE["bead_pose_node<br/>3D 경로 생성"]
+        U2["bead_unet_node_after<br/>완료 영역 판정"]
+        ORC["tcp_test_client_V3<br/>오케스트레이터"]
+        CSV[("기준 외곽선 CSV")]
+
+        CAM -->|color| U1
+        U1 -->|/bead/mask| POSE
+        CAM -->|aligned depth| POSE
+        POSE -->|/bead/grind_path_base| ORC
+        U1 -.->|저장| CSV
+        CSV -.->|비교 기준| U2
+        CAM -->|color| U2
+        U2 -->|/stop| ORC
+    end
+
+    subgraph CS9["Stäubli CS9 컨트롤러 (VAL3)"]
+        direction TB
+        MAIN["_mainLoop<br/>명령 분기"]
+        PASS["_startPass<br/>그라인딩 패스"]
+        MAIN --> PASS
+    end
+
+    ROBOT["RX160 + 그라인더"]
+
+    ORC <==>|"TCP 소켓 4개<br/>Command 11001 · Motion 11000<br/>Feedback 11002 · Joint 11003"| MAIN
+    PASS --> ROBOT
+
+    classDef vision fill:#e8f0fe,stroke:#4a74c9,color:#1a1a1a
+    classDef ctrl fill:#fff4e5,stroke:#d9822b,color:#1a1a1a
+    classDef robot fill:#eaf6ec,stroke:#3c8d50,color:#1a1a1a
+    class CAM,U1,POSE,U2 vision
+    class ORC ctrl
+    class MAIN,PASS,ROBOT robot
+```
+
+오케스트레이터가 인식·경로·판정 노드를 단계마다 subprocess로 실행·종료하고, 로봇과는 용도별로 나눈 TCP 소켓 4개로 통신합니다.
+
+## 동작 시퀀스
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant PC as ROS 2 오케스트레이터 (PC)
+    participant V as VAL3 (Stäubli CS9)
+
+    rect rgb(232, 240, 254)
+    Note over PC,V: 1회차 – 기준 인식 · 경로 생성
+    PC->>V: CMD 2 · 스캔 위치 이동
+    V-->>PC: STATUS 2 · 스캔 위치 도달
+    Note over PC: 카메라 촬영 → U-Net 비드 인식<br/>→ 기준 외곽선 저장 → 3D 경로 생성 (웨이포인트 30개)
+    end
+
+    loop 패스 반복
+        rect rgb(255, 244, 229)
+        PC->>V: CMD 3 · 가공 준비 + 웨이포인트 전송 (Motion)
+        V-->>PC: STATUS 3 · 가공 준비 완료
+        PC->>V: CMD 4 · 가공 시작
+        Note over V: 웨이포인트를 따라 그라인딩 패스
+        V-->>PC: STATUS 4 · 가공 완료
+        PC->>V: CMD 2 · 스캔 위치 복귀
+        V-->>PC: STATUS 2 · 스캔 위치 도달
+        Note over PC: 재스캔 → 완료 영역 판정
+        end
+
+        break 진행률 ≥ 100% 또는 과절삭 감지
+            PC->>V: CMD 1 · 종료
+            V-->>PC: STATUS 1 · 홈 위치 복귀
+        end
+
+        Note over PC: NOK → 첫 경로 재사용, Z −0.5 mm 오프셋
+    end
+```
+
+진행률 = (기준 외곽선 내부 완료 영역 비율) ÷ 93%. 2회차부터는 비드 인식·경로 생성을 다시 하지 않고 첫 경로를 재사용합니다.
 
 ## 주요 기능
 
@@ -58,7 +132,7 @@
 
 **4. 종료점 판정** – `nodes/bead_unet_node_after.py`
 - 재스캔 영상을 완료 영역 U-Net(1280 입력, 비율 유지 + 패딩)으로 분할하고, 패딩을 제거해 기준과 같은 원본 좌표계로 복원
-- 기준 외곽선 내부의 완료 영역 비율 **≥ 93%** 이면 OK
+- 기준 외곽선 내부의 완료 영역 비율이 **93%** 에 도달하면(진행률 ≥ 100%) OK
 - **과절삭 판단 요소**: 기준 외곽선 밖에서 완료 영역이 검출되면 과삭 의심으로 정지 – 최종 코드는 **40 px 이상**, 실험에서는 기준 면적 대비 **5% 이상** 비율 기준으로도 바꿔 비교
 - 결과를 색으로 표시: 🟩 연삭 완료 · 🟧 잔여 비드 · 🟥 기준 밖(과삭 후보)
 
